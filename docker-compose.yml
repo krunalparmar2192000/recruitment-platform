@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: recruitment-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: recruitment_db
+      MYSQL_USER: recruitment_user
+      MYSQL_PASSWORD: recruitment_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database-setup-mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./database-export.sql:/docker-entrypoint-initdb.d/02-data.sql
+    networks:
+      - recruitment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend (Spring Boot)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: recruitment-backend
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/recruitment_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: recruitment_user
+      DB_PASSWORD: recruitment_pass
+      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      JWT_EXPIRATION: 900000
+      JWT_REFRESH_EXPIRATION: 604800000
+      APP_URL: http://localhost:5173
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - recruitment-network
+    volumes:
+      - backend_uploads:/app/uploads
+
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: recruitment-frontend
+    environment:
+      VITE_API_URL: http://localhost:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - recruitment-network
+
+volumes:
+  mysql_data:
+  backend_uploads:
+
+networks:
+  recruitment-network:
+    driver: bridge
