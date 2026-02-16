@@ -11,11 +11,10 @@ services:
       MYSQL_USER: recruitment_user
       MYSQL_PASSWORD: recruitment_pass
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database-setup-mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./database-export.sql:/docker-entrypoint-initdb.d/02-data.sql
+      - ./database-export.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - recruitment-network
     healthcheck:
